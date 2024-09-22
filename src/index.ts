@@ -1,14 +1,26 @@
 import express, { Express, Request, Response } from "express";
 import dotenv from "dotenv";
+import cors from "cors";
 import WebSocket from "ws";
 import { SocketInfo } from "./models/common";
 import ReceivedMessageHandler from "./controllers/receivedMessageHandler";
 import Disconnection from "./services/Disconnection";
+import chargersRoutes from "./routes/chargers";
 
 dotenv.config();
 const port = process.env.PORT || 33333;
 
 const app: Express = express();
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
+app.use(
+    cors({
+        origin: "*",
+        credentials: true,
+    })
+);
+
+app.use("/chargers", chargersRoutes);
 const server = app.listen(port, () => {
     console.log("Server listening on http:/localhost:" + port);
 });
@@ -53,33 +65,48 @@ wsServer.on(
     (socket: WebSocket & SocketInfo, request: Request) => {
         const searchParams = new URLSearchParams(request.url.slice(1));
         const charger = searchParams.get("charger");
-        const dashboard = searchParams.get("dashboard");
+        const dashboard = !!searchParams.get("dashboard");
         //let charger = request.url.slice(1);
+        socket.charger = charger;
+        socket.idTag = "";
+        socket.dashboard = dashboard;
         if (charger) {
-            socket.charger = charger;
-            socket.idTag = "";
             console.log("New charger connected", charger);
-
-            socket.on("message", (data: string) => {
-                const [messageTypeId] = JSON.parse(data.toString());
-                if (messageTypeId == 2) {
-                    ReceivedMessageHandler(socket, charger, data.toString());
-                }
-            });
-
-            socket.on("close", async () => {
-                console.log("Client disconnected", charger);
-                await Disconnection(charger);
-            });
-
-            socket.on("error", (error: any) => {
-                throw new Error("socket error: " + error);
-            });
         }
 
         if (dashboard) {
+            console.log("New dashboard connected", dashboard);
             dashboards.push(socket);
         }
+
+        socket.on("message", (data: string) => {
+            if (charger) {
+                const [messageTypeId] = JSON.parse(data.toString());
+                if (messageTypeId == 2) {
+                    ReceivedMessageHandler(
+                        socket,
+                        charger,
+                        data.toString(),
+                        wsServer.clients
+                    );
+                }
+            }
+        });
+
+        socket.on("close", async () => {
+            if (charger) {
+                console.log("Client disconnected", charger);
+                await Disconnection(charger, wsServer.clients);
+            }
+
+            if (dashboard) {
+                console.log("Dashboard disconnected", dashboard);
+            }
+        });
+
+        socket.on("error", (error: any) => {
+            throw new Error("socket error: " + error);
+        });
     }
 );
 
