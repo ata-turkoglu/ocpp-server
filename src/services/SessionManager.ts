@@ -68,8 +68,13 @@ const updateStatus = async (idTag: string, data: any, charger: string) => {
         await db("online_chargers")
             .update(dbData)
             .where({ charger_code: charger, connector_id: data.connectorId });
+        return null;
     } else {
-        await db("online_chargers").insert(dbData);
+        const online_charger_id = await db("online_chargers")
+            .insert(dbData)
+            .returning("online_charger_id")
+            .then((res) => res[0].online_charger_id);
+        return { online_charger_id, ...dbData };
     }
 };
 
@@ -79,7 +84,7 @@ const startTransaction = async (idTag: string, data: any, charger: string) => {
     dbData.start_timestamp = dbData.timestamp;
     delete dbData.timestamp;
 
-    const idTagInfo = await Authorization({ idTag });
+    const idTagInfo = await Authorization({ idTag: data.idTag });
 
     let transactionId = null;
     if (idTagInfo.status == "Accepted") {
@@ -108,9 +113,15 @@ const meterValues = async (idTag: string, data: any) => {
     return {};
 };
 
-const stopTransaction = async (idTag: string, data: any) => {
-    const { meterStop, timestamp, transactionId, reason, transactionData } =
-        data;
+const stopTransaction = async (id_tag: string, data: any) => {
+    const {
+        idTag,
+        meterStop,
+        timestamp,
+        transactionId,
+        reason,
+        transactionData,
+    } = data;
 
     const idTagInfo = await Authorization({ idTag });
 

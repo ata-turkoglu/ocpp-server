@@ -22,7 +22,8 @@ export interface Message {
 
 export interface SocketInfo {
     idTag: string;
-    charger: string;
+    charger: string | null;
+    dashboard: boolean | null;
 }
 
 export interface MeterValue {
@@ -38,4 +39,10 @@ export interface SampledValue {
     phase?: Phase;
     location?: Location;
     unit?: UnitOfMeasure;
+}
+
+export interface BroadcastData {
+    messageType: string;
+    charger_code: string;
+    data: any;
 }
