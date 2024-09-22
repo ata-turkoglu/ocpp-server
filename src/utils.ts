@@ -1,3 +1,5 @@
+import db from "../db";
+
 const camelToSnakeCase = (str: string) =>
     str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
 
@@ -47,4 +49,8 @@ export const convertKeysFromDB = (data: any) => {
     } catch (error: any) {
         throw new Error(error);
     }
+};
+
+export const resetOnlinesTable = async () => {
+    await db("online_chargers").del();
 };
