@@ -5,11 +5,14 @@ import { BootNotificationRes, StartTransactionRes } from "../models/responses";
 import SessionManager from "../services/SessionManager";
 import Authorization from "../services/Authorization";
 import MessageSendingHandler from "../services/MessageSendingHandler";
+import BroadcastService from "../services/BroadcastService";
+import { convertKeysForDB } from "../utils";
 
 const ReceivedMessageHandler = (
     socket: WebSocket & SocketInfo,
     charger: string,
-    data: any
+    data: any,
+    clients: any
 ) => {
     const [messageTypeId, uniqueId, action, payload] = JSON.parse(
         data.toString()
@@ -21,11 +24,23 @@ const ReceivedMessageHandler = (
         case "Authorize":
             return authorizeMsg(socket, uniqueId, payload, charger);
         case "BootNotification":
-            return bootNotificationMsg(socket, uniqueId, payload, charger);
+            return bootNotificationMsg(
+                socket,
+                uniqueId,
+                payload,
+                charger,
+                clients
+            );
         case "StartTransaction":
             return startTransactionMsg(socket, uniqueId, payload, charger);
         case "StatusNotification":
-            return statusNotificationMsg(socket, uniqueId, payload, charger);
+            return statusNotificationMsg(
+                socket,
+                uniqueId,
+                payload,
+                charger,
+                clients
+            );
         case "MeterValues":
             return meterValuesMsg(socket, uniqueId, payload, charger);
         case "StopTransaction":
@@ -45,11 +60,6 @@ const authorizeMsg = async (
 ) => {
     const idTagInfo: IdTagInfo = await Authorization(data);
 
-    if (idTagInfo.status == "Accepted") {
-        socket.idTag = data.idTag;
-        await SessionManager(socket.idTag, "startSession", idTagInfo, charger);
-    }
-
     MessageSendingHandler(socket, 3, uniqueId, idTagInfo);
 };
 
@@ -57,9 +67,10 @@ const bootNotificationMsg = async (
     socket: WebSocket & SocketInfo,
     uniqueId: string,
     data: any,
-    charger: string
+    charger: string,
+    clients: any
 ) => {
-    const response = await SessionManager(
+    const response: any = await SessionManager(
         socket.idTag,
         "bootCharger",
         data,
@@ -67,6 +78,10 @@ const bootNotificationMsg = async (
     );
 
     MessageSendingHandler(socket, 3, uniqueId, response);
+
+    if (response.status == "Accepted") {
+        BroadcastService("online", charger, clients, response);
+    }
 };
 
 const startTransactionMsg = async (
@@ -89,7 +104,8 @@ const statusNotificationMsg = async (
     socket: WebSocket & SocketInfo,
     uniqueId: string,
     data: any,
-    charger: string
+    charger: string,
+    clients: any
 ) => {
     const response = await SessionManager(
         socket.idTag,
@@ -99,6 +115,13 @@ const statusNotificationMsg = async (
     );
 
     MessageSendingHandler(socket, 3, uniqueId, {});
+
+    BroadcastService(
+        "statusUpdate",
+        charger,
+        clients,
+        convertKeysForDB(data, false)
+    );
 };
 
 const meterValuesMsg = async (
