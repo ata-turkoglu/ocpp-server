@@ -11,14 +11,27 @@ chargersRoutes.get(
             .transaction(async (trx) => {
                 const chargers = await trx("chargers").select();
                 const onlines = await trx("online_chargers").select();
-                chargers.forEach((charger) => {
-                    const found = onlines.find(
+                //const transactions = await trx('transactions').select().where({})
+                chargers.forEach(async (charger) => {
+                    const found = onlines.filter(
                         (onl) => onl.charger_code == charger.charger_code
                     );
-                    if (found) {
+                    if (found.length > 0) {
                         charger.online = true;
                         charger.connectors = {};
-                        charger.connectors[found.connector_id] = found;
+                        found.forEach(async (conn) => {
+                            const transaction = await trx("transactions")
+                                .select()
+                                .where({
+                                    charger_code: charger.charger_code,
+                                    connector_id: conn.connector_id,
+                                })
+                                .orderBy("start_timestamp", "desc")
+                                .limit(1)
+                                .then((res) => res[0]);
+                            conn.transaction = { ...transaction };
+                            charger.connectors[conn.connector_id] = conn;
+                        });
                     } else {
                         charger.online = false;
                     }
@@ -27,11 +40,11 @@ chargersRoutes.get(
             })
             .catch((err) => console.error(err));
 
-        console.log(result);
+        //console.log(result);
 
         if (!result) return response.status(500).send({ error: "error" });
 
-        console.log("get-chargers", JSON.stringify(result));
+        //console.log("get-chargers", JSON.stringify(result));
         return response.status(200).send(result);
     }
 );
