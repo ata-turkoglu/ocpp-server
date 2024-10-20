@@ -15,3 +15,7 @@ export interface StartTransactionRes {
     idTagInfo: IdTagInfo;
     transactionId: number;
 }
+
+export interface StopTransactionRes {
+    idTagInfo: IdTagInfo;
+}

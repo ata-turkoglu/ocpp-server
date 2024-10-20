@@ -4,6 +4,7 @@ import db from "../../db";
 import { convertKeysForDB } from "../utils";
 import Authorization from "./Authorization";
 import UsageService from "./UsageSevice";
+import { IdTagInfo } from "../models/common";
 
 const SessionManager = (
     idTag: string,
@@ -123,7 +124,7 @@ const stopTransaction = async (id_tag: string, data: any) => {
         transactionData,
     } = data;
 
-    const idTagInfo = await Authorization({ idTag });
+    const idTagInfo: IdTagInfo = await Authorization({ idTag });
 
     if (idTagInfo.status == "Accepted") {
         await db("transactions")
@@ -167,7 +168,7 @@ const stopTransaction = async (id_tag: string, data: any) => {
 
         UsageService.add(data);
     }
-    return idTagInfo;
+    return { idTagInfo };
 };
 
 export default SessionManager;
