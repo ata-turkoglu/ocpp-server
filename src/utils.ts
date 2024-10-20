@@ -54,3 +54,24 @@ export const convertKeysFromDB = (data: any) => {
 export const resetOnlinesTable = async () => {
     await db("online_chargers").del();
 };
+
+export const getUserName = async (id_tag: string) => {
+    return await db("users")
+        .select("user_name")
+        .where({ id_tag })
+        .then((res) => res[0].user_name);
+};
+
+export const addDummyConnector = async () => {
+    await db("online_chargers").insert({
+        online_charger_id: 223,
+        charger_code: "newStation1239",
+        connector_id: 2,
+        error_code: "NoError",
+        info: null,
+        status: "Available",
+        timestamp: "2024-09-24T13:29:07.953Z",
+        vendorid: null,
+        vendorerrorcode: null,
+    });
+};
